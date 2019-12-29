@@ -111,6 +111,7 @@ export default async function cli(args, log, error, exit) {
       ignoreBinPackage: opt.ignoreBinPackage,
       ignoreMatches: opt.ignores || [],
       ignoreDirs: opt.ignoreDirs || [],
+      ignoreFiles: opt.ignoreFiles || [],
       parsers: getParsers(opt.parsers),
       detectors: getDetectors(opt.detectors),
       specials: getSpecials(opt.specials),

@@ -69,6 +69,10 @@ export default function depcheck(rootDir, options, callback) {
     defaultOptions.ignoreDirs,
     options.ignoreDirs,
   );
+  const ignoreFiles = lodash.union(
+    defaultOptions.ignoreFiles,
+    options.ignoreFiles,
+  );
   const skipMissing = getOption('skipMissing');
 
   const detectors = getOption('detectors');
@@ -101,6 +105,7 @@ export default function depcheck(rootDir, options, callback) {
   return check({
     rootDir,
     ignoreDirs,
+    ignoreFiles,
     skipMissing,
     deps,
     devDeps,

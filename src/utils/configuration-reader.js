@@ -34,6 +34,7 @@ export function getCliArgs(args, version) {
     .describe('json', 'Output results to JSON')
     .describe('ignores', 'Comma separated package list to ignore')
     .describe('ignore-dirs', 'Comma separated folder names to ignore')
+    .describe('ignore-files', 'Comma separated globs of files to ignore')
     .describe('parsers', 'Comma separated glob:parser pair list')
     .describe('detectors', 'Comma separated detector list')
     .describe('specials', 'Comma separated special parser list')
