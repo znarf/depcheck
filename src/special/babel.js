@@ -1,6 +1,6 @@
 import path from 'path';
 import lodash from 'lodash';
-import { loadConfig } from '../utils/linters';
+import { parseConfig } from '../utils/config';
 
 function parse(content) {
   try {
@@ -83,14 +83,17 @@ function checkOptions(deps, options = {}) {
 
 const regex = /^(\.babelrc|babelrc\.js|babel\.config\.js)?$/;
 
-export default function parseBabel(content, filePath, deps, rootDir) {
-  const config = loadConfig('babel', regex, filePath, content, rootDir);
+export default function parseBabel(content, filename, deps) {
+  const basename = path.basename(filename);
 
-  if (config) {
-    return checkOptions(deps, config);
+  if (regex.test(basename)) {
+    const config = parseConfig(content);
+    if (config) {
+      return checkOptions(deps, config);
+    }
   }
 
-  if (path.basename(filePath) === 'package.json') {
+  if (basename === 'package.json') {
     const metadata = parse(content);
     return checkOptions(deps, metadata.babel);
   }
