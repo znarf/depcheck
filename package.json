@@ -17,8 +17,8 @@
   "scripts": {
     "component": "node -r @babel/register ./build/component.js > ./dist/component.json && node -r @babel/register ./build/component.js ./index.d.tmpl > ./dist/index.d.ts",
     "compile": "babel src/ -d dist/",
-    "depcheck": "node ./bin/depcheck.js --ignore-dirs=fake_modules",
-    "depcheck-json": "node ./bin/depcheck.js --ignore-dirs=fake_modules --json | node -r @babel/register ./build/check-json",
+    "depcheck": "node ./bin/depcheck.js",
+    "depcheck-json": "node ./bin/depcheck.js --json | node -r @babel/register ./build/check-json",
     "prepublishOnly": "npm run compile && npm run component",
     "prettier": "prettier \"**/*.@(js|json|md|yml)\"",
     "prettier-check": "npm run prettier -- --check",
@@ -117,6 +117,12 @@
   "mocha": {
     "require": [
       "@babel/register"
+    ]
+  },
+  "depcheck": {
+    "ignoreDirs": [
+      "dist",
+      "fake_modules"
     ]
   }
 }
