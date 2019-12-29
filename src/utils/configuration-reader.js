@@ -10,9 +10,8 @@ function parseCsvArray(value) {
 export function getCliArgs(args, version) {
   return yargs(args)
     .usage('Usage: $0 [DIRECTORY]')
-    .boolean(['dev', 'ignore-bin-package', 'skip-missing'])
+    .boolean(['ignore-bin-package', 'skip-missing'])
     .default({
-      dev: true,
       'ignore-bin-package': false,
       'skip-missing': false,
     })
