@@ -43,6 +43,13 @@ export const defaultOptions = {
     '*.swf',
     '*.jar',
     '*.zip',
+    '*.woff2',
+
+    '*.svg',
+    '*.html',
+    '*.css',
+    '*.md',
+    '*.txt',
   ],
   skipMissing: false,
   parsers: {
