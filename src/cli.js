@@ -6,6 +6,10 @@ import lodash from 'lodash';
 import depcheck from './index';
 import { version } from '../package.json';
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function checkPathExist(dir, errorMessage) {
   return new Promise((resolve, reject) =>
     fs.exists(dir, (result) => (result ? resolve() : reject(errorMessage))),
@@ -81,7 +85,9 @@ function print(result, log, json, rootDir) {
   return result;
 }
 
-export default function cli(args, log, error, exit) {
+export default async function cli(args, log, error, exit) {
+  console.log('Waiting 10 seconds');
+  await sleep(10000);
   const opt = yargs(args)
     .usage('Usage: $0 [DIRECTORY]')
     .boolean(['ignore-bin-package', 'skip-missing'])

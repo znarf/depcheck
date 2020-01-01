@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import debugLib from 'debug';
 import lodash from 'lodash';
 import walkdir from 'walkdir';
 import minimatch from 'minimatch';
@@ -8,7 +8,10 @@ import requirePackageName from 'require-package-name';
 import { loadModuleData, readJSON } from './utils';
 import getNodes from './utils/parser';
 import { getAtTypesName } from './utils/typescript';
+import { getContentPromise } from './utils/file';
 import { availableParsers } from './constants';
+
+const debug = debugLib('depcheck');
 
 function isModule(dir) {
   try {
@@ -47,66 +50,61 @@ function discoverPropertyDep(rootDir, deps, property, depName) {
   return lodash.intersection(deps, propertyDeps);
 }
 
-function getDependencies(dir, filename, deps, parser, detectors) {
-  return new Promise((resolve, reject) => {
-    fs.readFile(filename, 'utf8', (error, content) => {
-      if (error) {
-        reject(error);
-      }
+async function getDependencies(dir, filename, deps, parser, detectors) {
+  debug('getDependencies', filename, parser);
 
-      try {
-        resolve(parser(content, filename, deps, dir));
-      } catch (syntaxError) {
-        reject(syntaxError);
-      }
-    });
-  }).then((ast) => {
-    // when parser returns string array, skip detector step and treat them as dependencies.
-    const dependencies =
-      lodash.isArray(ast) && ast.every(lodash.isString)
-        ? ast
-        : lodash(getNodes(ast))
-            .map((node) => detect(detectors, node, deps))
-            .flatten()
-            .uniq()
-            .map(requirePackageName)
-            .thru((_dependencies) =>
-              parser === availableParsers.typescript
-                ? // If this is a typescript file, importing foo would also use @types/foo, but
-                  // only if @types/foo is already a specified dependency.
-                  lodash(_dependencies)
-                    .map((dependency) => {
-                      const atTypesName = getAtTypesName(dependency);
-                      return deps.includes(atTypesName)
-                        ? [dependency, atTypesName]
-                        : [dependency];
-                    })
-                    .flatten()
-                    .value()
-                : _dependencies,
-            )
-            .value();
+  const content = await getContentPromise(filename);
 
-    const discover = lodash.partial(discoverPropertyDep, dir, deps);
-    const discoverPeerDeps = lodash.partial(discover, 'peerDependencies');
-    const discoverOptionalDeps = lodash.partial(
-      discover,
-      'optionalDependencies',
-    );
-    const peerDeps = lodash(dependencies)
-      .map(discoverPeerDeps)
-      .flatten()
-      .value();
-    const optionalDeps = lodash(dependencies)
-      .map(discoverOptionalDeps)
-      .flatten()
-      .value();
+  const ast = parser(content, filename, deps, dir);
 
-    return dependencies.concat(peerDeps).concat(optionalDeps);
-  });
+  // when parser returns string array, skip detector step and treat them as dependencies.
+  const dependencies =
+    lodash.isArray(ast) && ast.every(lodash.isString)
+      ? ast
+      : lodash(getNodes(ast, filename))
+          .map((node) => detect(detectors, node, deps))
+          .flatten()
+          .uniq()
+          .map(requirePackageName)
+          .thru((_dependencies) =>
+            parser === availableParsers.typescript
+              ? // If this is a typescript file, importing foo would also use @types/foo, but
+                // only if @types/foo is already a specified dependency.
+                lodash(_dependencies)
+                  .map((dependency) => {
+                    const atTypesName = getAtTypesName(dependency);
+                    return deps.includes(atTypesName)
+                      ? [dependency, atTypesName]
+                      : [dependency];
+                  })
+                  .flatten()
+                  .value()
+              : _dependencies,
+          )
+          .value();
+
+  const discover = lodash.partial(discoverPropertyDep, dir, deps);
+  const discoverPeerDeps = lodash.partial(discover, 'peerDependencies');
+  const discoverOptionalDeps = lodash.partial(discover, 'optionalDependencies');
+  const peerDeps = lodash(dependencies)
+    .map(discoverPeerDeps)
+    .flatten()
+    .value();
+  const optionalDeps = lodash(dependencies)
+    .map(discoverOptionalDeps)
+    .flatten()
+    .value();
+
+  return dependencies.concat(peerDeps).concat(optionalDeps);
 }
 
+// const bench = {};
+
 function checkFile(dir, filename, deps, parsers, detectors) {
+  debug('checkFile', filename);
+
+  // const start = process.hrtime.bigint();
+
   const basename = path.basename(filename);
   const targets = lodash(parsers)
     .keys()
@@ -115,7 +113,7 @@ function checkFile(dir, filename, deps, parsers, detectors) {
     .flatten()
     .value();
 
-  return targets.map((parser) =>
+  const result = targets.map((parser) =>
     getDependencies(dir, filename, deps, parser, detectors).then(
       (using) => ({
         using: {
@@ -133,15 +131,43 @@ function checkFile(dir, filename, deps, parsers, detectors) {
       }),
     ),
   );
+
+  // const end = process.hrtime.bigint();
+
+  // const bench = Number(end - start) / 1000;
+
+  // if (filename === '/Users/fhodierne/Dev/depcheck/doc/pluggable-design.md') {
+  //   console.log(`${filename} took ${Number(end - start) / 1000} microseconds`);
+  // }
+  // if (bench > 2500) {
+  //   console.log(`${filename} took ${Number(end - start) / 1000} nanoseconds`);
+  // }
+
+  // bench[filename] = end - start;
+
+  // console.log(filename, end);
+
+  debug('checkFile ended', filename);
+
+  return result;
 }
 
 function checkDirectory(dir, rootDir, ignoreDirs, deps, parsers, detectors) {
+  debug('dir', dir);
+
+  const start = process.hrtime.bigint();
+
   return new Promise((resolve) => {
     const promises = [];
     const finder = walkdir(dir, { no_recurse: true, follow_symlinks: true });
 
-    finder.on('directory', (subdir) =>
-      ignoreDirs.indexOf(path.basename(subdir)) === -1 && !isModule(subdir)
+    finder.on('directory', (subdir) => {
+      // console.log('checkDirectory', dir);
+      // console.log(ignoreDirs);
+      // console.log(path.basename(subdir));
+      // console.log(ignoreDirs.indexOf(path.basename(subdir)));
+      return ignoreDirs.indexOf(path.basename(subdir)) === -1 &&
+        !isModule(subdir)
         ? promises.push(
             checkDirectory(
               subdir,
@@ -152,12 +178,15 @@ function checkDirectory(dir, rootDir, ignoreDirs, deps, parsers, detectors) {
               detectors,
             ),
           )
-        : null,
-    );
+        : null;
+    });
 
-    finder.on('file', (filename) =>
-      promises.push(...checkFile(rootDir, filename, deps, parsers, detectors)),
-    );
+    finder.on('file', (filename) => {
+      if (dir === '/Users/fhodierne/Dev/depcheck/doc') {
+        debug('finder', filename);
+      }
+      promises.push(...checkFile(rootDir, filename, deps, parsers, detectors));
+    });
 
     finder.on('error', (_, error) =>
       promises.push(
@@ -169,10 +198,27 @@ function checkDirectory(dir, rootDir, ignoreDirs, deps, parsers, detectors) {
       ),
     );
 
-    finder.on('end', () =>
+    finder.on('end', () => {
+      const end = process.hrtime.bigint();
+
+      // if (bench > 2500) {
+      debug(
+        `${dir} dir end took ${Number(end - start) / 1000 / 1000} milliseconds`,
+      );
+
       resolve(
-        Promise.all(promises).then((results) =>
-          results.reduce(
+        Promise.all(promises).then((results) => {
+          const endresolve = process.hrtime.bigint();
+
+          // if (bench > 2500) {
+          debug(
+            `${dir} dir resolve took ${Number(endresolve - start) /
+              1000 /
+              1000} milliseconds`,
+          );
+          // }
+
+          return results.reduce(
             (obj, current) => ({
               using: mergeBuckets(obj.using, current.using || {}),
               invalidFiles: Object.assign(
@@ -186,10 +232,10 @@ function checkDirectory(dir, rootDir, ignoreDirs, deps, parsers, detectors) {
               invalidFiles: {},
               invalidDirs: {},
             },
-          ),
-        ),
-      ),
-    );
+          );
+        }),
+      );
+    });
   });
 }
 

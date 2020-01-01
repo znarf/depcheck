@@ -58,6 +58,8 @@ function filterDependencies(
 }
 
 export default function depcheck(rootDir, options, callback) {
+  console.log(options);
+
   registerTs(rootDir);
 
   const getOption = (key) =>

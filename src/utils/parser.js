@@ -1,4 +1,7 @@
 import lodash from 'lodash';
+import debugLib from 'debug';
+
+const debug = debugLib('depcheck');
 
 // fix for node.js <= 3, it throws TypeError when value type invalid in weak set
 function hasVisited(ast, visited) {
@@ -33,7 +36,8 @@ function recursive(ast, visited) {
   return [];
 }
 
-export default function getNodes(ast) {
+export default function getNodes(ast, filename = null) {
+  debug('getNodes', filename);
   const visited = new WeakSet();
   return recursive(ast, visited);
 }
