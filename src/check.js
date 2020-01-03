@@ -132,24 +132,22 @@ function checkFile(dir, filename, deps, parsers, detectors) {
   );
 }
 
-function checkDirectory(dir, rootDir, ignoreDirs, deps, parsers, detectors) {
+function checkDirectory(dir, rootDir, ignorer, deps, parsers, detectors) {
   debug('depcheck:checkDirectory')(dir);
 
   return new Promise((resolve) => {
     const promises = [];
-    const finder = walkdir(dir, { no_recurse: true, follow_symlinks: true });
+
+    const finder = walkdir(dir, {
+      filter: (dirPath, files) => ignorer.filter(files),
+      no_recurse: true,
+      follow_symlinks: true,
+    });
 
     finder.on('directory', (subdir) =>
-      ignoreDirs.indexOf(path.basename(subdir)) === -1 && !isModule(subdir)
+      !isModule(subdir)
         ? promises.push(
-            checkDirectory(
-              subdir,
-              rootDir,
-              ignoreDirs,
-              deps,
-              parsers,
-              detectors,
-            ),
+            checkDirectory(subdir, rootDir, ignorer, deps, parsers, detectors),
           )
         : null,
     );
@@ -246,7 +244,7 @@ function buildResult(
 
 export default function check({
   rootDir,
-  ignoreDirs,
+  ignorer,
   skipMissing,
   deps,
   devDeps,
@@ -259,7 +257,7 @@ export default function check({
   return checkDirectory(
     rootDir,
     rootDir,
-    ignoreDirs,
+    ignorer,
     allDeps,
     parsers,
     detectors,
