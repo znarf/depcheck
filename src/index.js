@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import lodash from 'lodash';
 import minimatch from 'minimatch';
+import ignore from 'ignore';
 import check from './check';
 import { loadModuleData, readJSON, tryRequire } from './utils';
 
@@ -57,6 +58,39 @@ function filterDependencies(
     .value();
 }
 
+function getIgnorer({ rootDir, ignorePath, ignoreDirs }) {
+  const ignorer = ignore();
+
+  // Support for ignoreDirs
+  // - potential BREAKING CHANGE with previous implementation
+  // - use glob style syntax provided by `ignore` instead of directory exact match
+  // - should be mostly retro-compatible
+  ignoreDirs.forEach((dir) => ignorer.add(dir));
+
+  if (ignorePath) {
+    const ignorePathFile = path.resolve(rootDir, ignorePath);
+    if (fs.existsSync(ignorePathFile)) {
+      console.log(`Using ${ignorePathFile} as ignore file.`);
+      const ignorePathFileContent = fs.readFileSync(ignorePathFile, 'utf8');
+      ignorer.add(ignorePathFileContent);
+    }
+    return ignorer;
+  }
+
+  // Fallback on .depcheckignore or .gitignore
+  const ignoreFile = ['.depcheckignore', '.gitignore']
+    .map((file) => path.resolve(rootDir, file))
+    .find((file) => fs.existsSync(file));
+
+  if (ignoreFile) {
+    console.log(`Using ${ignoreFile} as ignore file.`);
+    const ignoreContent = fs.readFileSync(ignoreFile, 'utf8');
+    ignorer.add(ignoreContent);
+  }
+
+  return ignorer;
+}
+
 export default function depcheck(rootDir, options, callback) {
   registerTs(rootDir);
 
@@ -65,6 +99,7 @@ export default function depcheck(rootDir, options, callback) {
 
   const ignoreBinPackage = getOption('ignoreBinPackage');
   const ignoreMatches = getOption('ignoreMatches');
+  const ignorePath = getOption('ignorePath');
   const ignoreDirs = lodash.union(
     defaultOptions.ignoreDirs,
     options.ignoreDirs,
@@ -98,9 +133,11 @@ export default function depcheck(rootDir, options, callback) {
     devDependencies,
   );
 
+  const ignorer = getIgnorer({ rootDir, ignorePath, ignoreDirs });
+
   return check({
     rootDir,
-    ignoreDirs,
+    ignorer,
     skipMissing,
     deps,
     devDeps,
