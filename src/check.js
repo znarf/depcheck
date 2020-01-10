@@ -2,6 +2,7 @@ import path from 'path';
 import lodash from 'lodash';
 import walkdir from 'walkdir';
 import minimatch from 'minimatch';
+// import { glob } from 'glob-gitignore';
 import builtInModules from 'builtin-modules';
 import requirePackageName from 'require-package-name';
 import { loadModuleData, readJSON } from './utils';
@@ -135,23 +136,26 @@ function checkDirectory(dir, rootDir, ignorer, deps, parsers, detectors) {
   return new Promise((resolve) => {
     const promises = [];
 
+    const filter = (absoluteDirPath, files) => {
+      const dirPath = absoluteDirPath.replace(`${dir}`, '').slice(1);
+      if (dirPath) {
+        const addDirPath = (file) => `${dirPath}/${file}`;
+        const removeDirPath = (file) => file.replace(`${dirPath}/`, '');
+        return ignorer.filter(files.map(addDirPath)).map(removeDirPath);
+      }
+      return ignorer.filter(files);
+    };
+
     const finder = walkdir(dir, {
-      filter: (dirPath, files) => ignorer.filter(files),
-      no_recurse: true,
+      filter,
+      no_recurse: false,
       follow_symlinks: true,
     });
 
-    finder.on('directory', (subdir) =>
-      !isModule(subdir)
-        ? promises.push(
-            checkDirectory(subdir, rootDir, ignorer, deps, parsers, detectors),
-          )
-        : null,
-    );
-
-    finder.on('file', (filename) =>
-      promises.push(...checkFile(rootDir, filename, deps, parsers, detectors)),
-    );
+    finder.on('file', (filename) => {
+      console.log('finder', 'onFile', filename);
+      promises.push(...checkFile(rootDir, filename, deps, parsers, detectors));
+    });
 
     finder.on('error', (_, error) =>
       promises.push(
