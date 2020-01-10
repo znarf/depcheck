@@ -766,4 +766,21 @@ export default [
     },
     expectedErrorCode: 0,
   },
+  {
+    name: 'support .depcheckignore',
+    module: 'depcheckignore',
+    options: {},
+    expected: {
+      dependencies: [],
+      devDependencies: ['debug'],
+      missing: {
+        react: ['used.js'],
+      },
+      using: {
+        lodash: ['used.js'],
+        react: ['used.js'],
+      },
+    },
+    expectedErrorCode: -1,
+  },
 ];
