@@ -58,15 +58,12 @@ function filterDependencies(
     .value();
 }
 
-function getIgnorer({ rootDir, ignorePath, ignoreDirs }) {
+function getIgnorer({ rootDir, ignorePath, ignorePatterns }) {
   const ignorer = ignore();
 
-  // Support for ignoreDirs
-  // - potential BREAKING CHANGE with previous implementation
-  // - use glob style syntax provided by `ignore` instead of directory exact match
-  // - should be mostly retro-compatible
-  ignoreDirs.forEach((dir) => ignorer.add(dir));
+  ignorer.add(ignorePatterns);
 
+  // If an .*ignore file is configured
   if (ignorePath) {
     const ignorePathFile = path.resolve(rootDir, ignorePath);
     if (fs.existsSync(ignorePathFile)) {
@@ -100,11 +97,18 @@ export default function depcheck(rootDir, options, callback) {
   const ignoreBinPackage = getOption('ignoreBinPackage');
   const ignoreMatches = getOption('ignoreMatches');
   const ignorePath = getOption('ignorePath');
-  const ignoreDirs = lodash.union(
+  const skipMissing = getOption('skipMissing');
+
+  // Support for ignoreDirs and ignorePatterns
+  // - potential BREAKING CHANGE with previous implementation
+  // - ignoreDirs was previously matching the exact name of a goven directory
+  // - ignorePatterns now use glob style syntax provided by the `ignore` package
+  // - given the previous usage, should be mostly retro-compatible
+  const ignorePatterns = lodash.union(
     defaultOptions.ignoreDirs,
     options.ignoreDirs,
+    options.ignorePatterns,
   );
-  const skipMissing = getOption('skipMissing');
 
   const detectors = getOption('detectors');
   const parsers = lodash(getOption('parsers'))
@@ -133,7 +137,7 @@ export default function depcheck(rootDir, options, callback) {
     devDependencies,
   );
 
-  const ignorer = getIgnorer({ rootDir, ignorePath, ignoreDirs });
+  const ignorer = getIgnorer({ rootDir, ignorePath, ignorePatterns });
 
   return check({
     rootDir,
