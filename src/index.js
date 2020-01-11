@@ -101,11 +101,11 @@ export default function depcheck(rootDir, options, callback) {
 
   // Support for ignoreDirs and ignorePatterns
   // - potential BREAKING CHANGE with previous implementation
-  // - ignoreDirs was previously matching the exact name of a goven directory
+  // - ignoreDirs was previously matching the exact name of a given directory
   // - ignorePatterns now use glob style syntax provided by the `ignore` package
   // - given the previous usage, should be mostly retro-compatible
   const ignorePatterns = lodash.union(
-    defaultOptions.ignoreDirs,
+    defaultOptions.ignorePatterns,
     options.ignoreDirs,
     options.ignorePatterns,
   );
