@@ -1,9 +1,8 @@
 import path from 'path';
 import debug from 'debug';
 import lodash from 'lodash';
-import walkdir from 'walkdir';
+import readdirp from 'readdirp';
 import minimatch from 'minimatch';
-// import { glob } from 'glob-gitignore';
 import builtInModules from 'builtin-modules';
 import requirePackageName from 'require-package-name';
 import { loadModuleData, readJSON } from './utils';
@@ -139,29 +138,21 @@ function checkDirectory(dir, rootDir, ignorer, deps, parsers, detectors) {
   return new Promise((resolve) => {
     const promises = [];
 
-    const filter = (absoluteDirPath, files) => {
-      const dirPath = absoluteDirPath.replace(`${dir}`, '').slice(1);
-      if (dirPath) {
-        const addDirPath = (file) => `${dirPath}/${file}`;
-        const removeDirPath = (file) => file.replace(`${dirPath}/`, '');
-        return ignorer.filter(files.map(addDirPath)).map(removeDirPath);
-      }
-      return ignorer.filter(files);
-    };
-
-    const finder = walkdir(dir, {
-      filter,
-      no_recurse: false,
-      follow_symlinks: true,
+    const finder = readdirp(dir, {
+      fileFilter: (entry) => !ignorer.ignores(entry.path),
+      directoryFilter: (entry) =>
+        !ignorer.ignores(entry.path) && !isModule(entry.fullPath),
     });
 
-    finder.on('file', (filename) => {
-      console.log('finder', 'onFile', filename);
-      promises.push(...checkFile(rootDir, filename, deps, parsers, detectors));
+    finder.on('data', (entry) => {
+      promises.push(
+        ...checkFile(rootDir, entry.fullPath, deps, parsers, detectors),
+      );
     });
 
-    finder.on('error', (_, error) => {
+    finder.on('error', (error) => {
       debug('depcheck:checkDirectory:error')(dir, error);
+
       promises.push(
         Promise.resolve({
           invalidDirs: {
@@ -171,7 +162,7 @@ function checkDirectory(dir, rootDir, ignorer, deps, parsers, detectors) {
       );
     });
 
-    finder.on('end', () =>
+    finder.on('end', () => {
       resolve(
         Promise.all(promises).then((results) =>
           results.reduce(
@@ -190,8 +181,8 @@ function checkDirectory(dir, rootDir, ignorer, deps, parsers, detectors) {
             },
           ),
         ),
-      ),
-    );
+      );
+    });
   });
 }
 
