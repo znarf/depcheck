@@ -2,6 +2,7 @@ import path from 'path';
 import lodash from 'lodash';
 import readdirp from 'readdirp';
 import minimatch from 'minimatch';
+import PQueue from 'p-queue';
 import builtInModules from 'builtin-modules';
 import requirePackageName from 'require-package-name';
 import { loadModuleData, readJSON } from './utils';
@@ -133,7 +134,9 @@ function checkFile(dir, filename, deps, parsers, detectors) {
 
 function checkDirectory(dir, rootDir, ignorer, deps, parsers, detectors) {
   return new Promise((resolve) => {
-    const promises = [];
+    const results = [];
+
+    const queue = new PQueue({ concurrency: 100 });
 
     const finder = readdirp(dir, {
       fileFilter: (entry) => !ignorer.ignores(entry.path),
@@ -142,24 +145,24 @@ function checkDirectory(dir, rootDir, ignorer, deps, parsers, detectors) {
     });
 
     finder.on('data', (entry) => {
-      promises.push(
-        ...checkFile(rootDir, entry.fullPath, deps, parsers, detectors),
+      queue.add(() =>
+        Promise.all(
+          checkFile(rootDir, entry.fullPath, deps, parsers, detectors, queue),
+        ).then((result) => results.push(...result)),
       );
     });
 
     finder.on('error', (error) => {
-      promises.push(
-        Promise.resolve({
-          invalidDirs: {
-            [error.path]: error,
-          },
-        }),
-      );
+      results.push({
+        invalidDirs: {
+          [error.path]: error,
+        },
+      });
     });
 
     finder.on('end', () => {
-      resolve(
-        Promise.all(promises).then((results) =>
+      queue.onIdle().then(() => {
+        resolve(
           results.reduce(
             (obj, current) => ({
               using: mergeBuckets(obj.using, current.using || {}),
@@ -175,8 +178,8 @@ function checkDirectory(dir, rootDir, ignorer, deps, parsers, detectors) {
               invalidDirs: {},
             },
           ),
-        ),
-      );
+        );
+      });
     });
   });
 }
@@ -243,6 +246,8 @@ export default function check({
   parsers,
   detectors,
 }) {
+  console.log('Check', rootDir);
+  const start = process.hrtime.bigint();
   const allDeps = lodash.union(deps, devDeps);
   return checkDirectory(
     rootDir,
@@ -251,7 +256,18 @@ export default function check({
     allDeps,
     parsers,
     detectors,
-  ).then((result) =>
-    buildResult(result, deps, devDeps, peerDeps, optionalDeps, skipMissing),
-  );
+  ).then((result) => {
+    const end = process.hrtime.bigint();
+    console.log(
+      `Check took ${Math.round(Number(end - start) / 1e6) / 1000} seconds`,
+    );
+    return buildResult(
+      result,
+      deps,
+      devDeps,
+      peerDeps,
+      optionalDeps,
+      skipMissing,
+    );
+  });
 }
