@@ -151,7 +151,7 @@ function checkDirectory(dir, rootDir, ignorer, deps, parsers, detectors) {
       );
     });
 
-    finder.on('error', (error) => {
+    finder.on('warn', (error) => {
       debug('depcheck:checkDirectory:error')(dir, error);
 
       promises.push(
