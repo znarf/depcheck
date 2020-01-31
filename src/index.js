@@ -3,6 +3,7 @@ import path from 'path';
 import lodash from 'lodash';
 import minimatch from 'minimatch';
 import ignore from 'ignore';
+import debug from 'debug';
 import check from './check';
 import { loadModuleData, readJSON, tryRequire } from './utils';
 
@@ -67,7 +68,7 @@ function getIgnorer({ rootDir, ignorePath, ignorePatterns }) {
   if (ignorePath) {
     const ignorePathFile = path.resolve(rootDir, ignorePath);
     if (fs.existsSync(ignorePathFile)) {
-      console.log(`Using ${ignorePathFile} as ignore file.`);
+      debug('depcheck:ignorer')(`Using ${ignorePathFile} as ignore file.`);
       const ignorePathFileContent = fs.readFileSync(ignorePathFile, 'utf8');
       ignorer.add(ignorePathFileContent);
     }
@@ -80,7 +81,7 @@ function getIgnorer({ rootDir, ignorePath, ignorePatterns }) {
     .find((file) => fs.existsSync(file));
 
   if (ignoreFile) {
-    console.log(`Using ${ignoreFile} as ignore file.`);
+    debug('depcheck:ignorer')(`Using ${ignoreFile} as ignore file.`);
     const ignoreContent = fs.readFileSync(ignoreFile, 'utf8');
     ignorer.add(ignoreContent);
   }

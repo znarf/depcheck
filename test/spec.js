@@ -783,4 +783,21 @@ export default [
     },
     expectedErrorCode: -1,
   },
+  {
+    name: 'support ignorePath',
+    module: 'depcheckignore',
+    options: { ignorePath: '.depcheckignore' },
+    expected: {
+      dependencies: [],
+      devDependencies: ['debug'],
+      missing: {
+        react: ['used.js'],
+      },
+      using: {
+        lodash: ['used.js'],
+        react: ['used.js'],
+      },
+    },
+    expectedErrorCode: -1,
+  },
 ];
