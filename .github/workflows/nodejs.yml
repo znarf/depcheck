@@ -1,6 +1,6 @@
 name: linux ci
 
-on: [pull_request]
+on: [push]
 
 jobs:
   build:
