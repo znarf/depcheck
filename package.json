@@ -63,7 +63,7 @@
     "minimatch": "^3.0.4",
     "node-sass-tilde-importer": "^1.0.2",
     "please-upgrade-node": "^3.2.0",
-    "readdirp": "znarf/readdirp#symbolic-link-directories",
+    "readdirp": "github:znarf/readdirp#66a14618c8b23a086e949c7bcab9ec5ad5d495e2",
     "require-package-name": "^2.0.1",
     "resolve": "^1.15.0",
     "vue-template-compiler": "^2.6.11",
