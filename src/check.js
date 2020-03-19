@@ -139,7 +139,6 @@ function checkDirectory(dir, rootDir, ignorer, deps, parsers, detectors) {
     const promises = [];
 
     const finder = readdirp(dir, {
-      lstat: true,
       fileFilter: (entry) => !ignorer.ignores(entry.path),
       directoryFilter: (entry) =>
         !ignorer.ignores(entry.path) && !isModule(entry.fullPath),
